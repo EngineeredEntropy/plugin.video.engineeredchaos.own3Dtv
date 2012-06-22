@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<settings>
+   <setting id="hdVideo" type="bool" label="Play Hd Videos." default="true"/>
+   <setting id="checkLive" type="bool" label="Check if Favorites are Live" default="true"/>
+   </settings>

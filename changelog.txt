@@ -1,0 +1,4 @@
+[B]Version: 0.0.1[/B]
+.Initial Release.
+Known Problems:
+.Live/Offline labels dissapear when deleting a user from favorites. Return to the main menu and reload favorites to refresh status.

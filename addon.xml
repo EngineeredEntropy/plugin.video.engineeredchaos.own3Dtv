@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon
+  id="plugin.video.own3dtv"
+  version="0.0.1"
+  name="own3D.tv"
+  provider-name="Engineered Chaos">
+  <requires>
+    <import version="1.0" addon="xbmc.python" />
+  </requires>
+
+    <extension library="own3Dtv.py" point="xbmc.python.pluginsource" >
+        <provides>video</provides>
+    </extension>
+    <extension point="xbmc.addon.metadata">
+        <platform>all</platform>
+		<summary>own3D.tv</summary>
+		<description>Watch live streams from own3D.tv</description>
+    </extension>
+</addon>
