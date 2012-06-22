@@ -1,4 +1,8 @@
-[B]Version: 0.0.1[/B]
-.Initial Release.
+[B]Version: 0.1.0[/B]
+*Greatly Increased Speed of live checking. Labels now persist when removing favorites.
 Known Problems:
-.Live/Offline labels dissapear when deleting a user from favorites. Return to the main menu and reload favorites to refresh status.
+*CDN1 is the only currently supported CDN. Streams without CDN1 will fail to load.
+[B]Version: 0.0.1[/B]
+*Initial Release.
+Known Problems:
+*Live/Offline labels dissapear when deleting a user from favorites. Return to the main menu and reload favorites to refresh status.

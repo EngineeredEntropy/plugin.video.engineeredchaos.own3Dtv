@@ -122,21 +122,31 @@ class Channel:
         print "Thumbnail: "+self.thumbnail
         #load CDN's and Streams
         self.cdnList=self.channel.getElementsByTagName("item")
-        self.activeCDN=len(self.cdnList)-1
+        cdn=len(self.cdnList)-1
+        
+        while cdn>=0:
+            self.rtmpBase=self.cdnList[cdn].attributes["base"].value
+            if self.rtmpBase == '${cdn1}':
+                self.activeCDN=cdn
+                break
+                
+        if(self.rtmpBase == "${cdn1}"):
+            self.rtmpBase = CDN1
+        else:
+            print "CDN Not Recognized! Aborting."
+            return 1
+        #self.rtmpBase=self.cdnList[self.activeCDN].attributes["base"].value
         self.streamList=self.cdnList[self.activeCDN].getElementsByTagName("stream")
-        self.rtmpBase=self.cdnList[self.activeCDN].attributes["base"].value
         self.rtmpPath=self.streamList[self.activeStream].attributes["name"].value
         
         #Generate playback URL
         
         #determine CDN
-        if self.rtmpBase == '${cdn1}':
-            self.rtmpBase = CDN1
+
         #elif self.rtmpBase == '${cdn2}':
         #    self.rtmpBase = CDN2
-        else:
-            print "CDN Not Recognized! Aborting."
-            return 1
+        #else:
+
         
         #rtmpURL
         if '?' in self.rtmpPath:
@@ -213,10 +223,21 @@ def displayVideos(videos, videoType):
     xbmcplugin.endOfDirectory(int(sys.argv[1]))
     
 def checkLive(streamID):
-    if loadInfo(streamID) == 1:
-        return OFFLINE
-    else:
+    print "Checking if "+str(streamID)+" is live."
+    liveURL="http://api.own3d.tv/liveCheck.php?live_id="+str(streamID)
+    livePage=urllib.urlopen(liveURL)
+    liveDOM=parse(livePage)
+    live=liveDOM.getElementsByTagName("liveEvent")[0]
+    print "Checking if Live."
+    print live.getElementsByTagName("isLive")[0].firstChild.data
+    if live.getElementsByTagName("isLive")[0].firstChild.data == "true":
         return LIVETYPE
+    else:
+        return OFFLINE
+#    if loadInfo(streamID) == 1:
+#        return OFFLINE
+#    else:
+#        return LIVETYPE
     
 def checkLiveOld(streamID):
     url="http://www.own3d.tv/livecfg/"+streamID
@@ -288,10 +309,11 @@ def loadGames():
     addMenuItem("World of Warcraft",SHOWWOW,WOWTHUMB)
     xbmcplugin.endOfDirectory(int(sys.argv[1]))
     
-def loadFavorites(favorites,refresh):
+def loadFavorites(favorites):
     print "Favorites: "
     print favorites
-    if refresh == 1 and settings.getSetting('checkLive') =="true":
+    #if refresh == 1 and settings.getSetting('checkLive') =="true":
+    if settings.getSetting('checkLive') =="true":
         displayVideos(favorites,CHECKLIVE)
     else:
         displayVideos(favorites,OTHER)
@@ -344,7 +366,7 @@ try:
 except:
     pass
 
-refresh=1
+#refresh=1
 favoriteString= settings.getSetting("favorites")
 favoriteSplit= favoriteString.split("&&&")
 print "Favorites Loaded: "
@@ -393,7 +415,7 @@ if favorite == 1:
 
 
 if favorite ==2:
-    refresh=0
+    #refresh=0
     newFavorites=[]
     favoriteString="";
     print "Removing "+nameAdd+" from favorites."
@@ -456,7 +478,7 @@ elif mode == LISTLIVEVIDEOS:
 elif mode == LISTGAMES:
     loadGames()
 elif mode == LISTFAVORITES:
-    loadFavorites(favorites,refresh)
+    loadFavorites(favorites)
 elif mode == SHOWSTARCRAFT:
     displayVideos(loadLive(STARCRAFTURL),LIVETYPE)
 elif mode == SHOWDIABLO:
