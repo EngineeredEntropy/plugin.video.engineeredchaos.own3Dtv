@@ -1,3 +1,5 @@
+[B]Version: 0.1.1[/B]
+*Errors relating to no internet connection are now caught.
 [B]Version: 0.1.0[/B]
 *Greatly Increased Speed of live checking. Labels now persist when removing favorites.
 Known Problems:

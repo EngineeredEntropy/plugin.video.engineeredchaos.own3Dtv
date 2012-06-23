@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <addon
-  id="plugin.video.own3dtv"
-  version="0.1.0"
+  id="plugin.video.engineeredchaos.own3Dtv"
+  version="0.1.1"
   name="own3D.tv"
   provider-name="Engineered Chaos">
   <requires>

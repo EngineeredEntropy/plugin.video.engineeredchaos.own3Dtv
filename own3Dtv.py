@@ -98,7 +98,12 @@ class Channel:
     def loadInfo(self):
         #Load and parse own3d info page
         infoURL="http://www.own3d.tv/livecfg/"+str(self.streamID)
-        infoPage=urllib.urlopen(infoURL)
+        try:
+            infoPage=urllib.urlopen(infoURL)
+        except:
+            xbmc.executebuiltin("XBMC.Notification(own3D.tv,Error Loading Stream,5000,"+ICON+")")
+            print "Error loading stream. Check your internet connection"
+            return 1
         self.infoDOM=parse(infoPage)
         self.channel=self.infoDOM.getElementsByTagName("channel")[0]
         
@@ -135,7 +140,7 @@ class Channel:
         else:
             print "CDN Not Recognized! Aborting."
             return 1
-        #self.rtmpBase=self.cdnList[self.activeCDN].attributes["base"].value
+        #self.rtmpBase=self.cdnList[sel f.activeCDN].attributes["base"].value
         self.streamList=self.cdnList[self.activeCDN].getElementsByTagName("stream")
         self.rtmpPath=self.streamList[self.activeStream].attributes["name"].value
         
@@ -206,7 +211,13 @@ def loadInfo(streamID):
             return 0
         
 def loadLive(url):
-    pageContents=loadPage(url)
+    try:
+        pageContents=loadPage(url)
+    except:
+        print "Error loading page. Are you connected to the internet?"
+        xbmc.executebuiltin("XBMC.Notification(own3D.tv,Error Locating Streams,5000,"+ICON+")")
+        return None
+    
     a=re.compile(LIVEREGEX)
     match=a.findall(pageContents)
     return match   
@@ -218,14 +229,19 @@ def loadPage(url):
     return pageContents
 
 def displayVideos(videos, videoType):
-    for streamID, thumbnail, name, preview in videos:
-        addVideoLink(streamID,thumbnail,name,preview,videoType)
-    xbmcplugin.endOfDirectory(int(sys.argv[1]))
+    if videos != None:
+        for streamID, thumbnail, name, preview in videos:
+            addVideoLink(streamID,thumbnail,name,preview,videoType)
+        xbmcplugin.endOfDirectory(int(sys.argv[1]))
     
 def checkLive(streamID):
     print "Checking if "+str(streamID)+" is live."
     liveURL="http://api.own3d.tv/liveCheck.php?live_id="+str(streamID)
-    livePage=urllib.urlopen(liveURL)
+    try:
+        livePage=urllib.urlopen(liveURL)
+    except:
+        print "Error checking if "+str(streamID)+" is live."
+        return OTHER
     liveDOM=parse(livePage)
     live=liveDOM.getElementsByTagName("liveEvent")[0]
     print "Checking if Live."
@@ -329,7 +345,7 @@ name=None
 favorite=None
 preview=None
 favorites=[]
-settings = xbmcaddon.Addon("plugin.video.own3Dtv")
+settings = xbmcaddon.Addon("plugin.video.engineeredchaos.own3Dtv")
 
 ICON = xbmc.translatePath( os.path.join( settings.getAddonInfo('path'), 'icon.png' ) )
 
