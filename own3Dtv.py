@@ -299,7 +299,7 @@ def addVideoLink(streamID, thumbnail, name, preview, videoType):
     
     if mode == LISTFAVORITES:
         title = ("Remove "+name+" from favorites." )                
-        browse =  "XBMC.Container.Refresh("+str(sys.argv[0])+str(sys.argv[2])+"&favorite=2"+"&streamID="+urllib.quote_plus(str(streamID))+"&name="+name+"&thumbnail="+urllib.quote_plus(str(thumbnail))+"&preview="+urllib.quote_plus(str(preview))+")"
+        browse =  "XBMC.Container.Refresh("+str(sys.argv[0])+str(sys.argv[2])+"&favorite=2"+"&streamID="+urllib.quote_plus(str(streamID))+"&name="+urllib.quote_plus(str(name))+"&thumbnail="+urllib.quote_plus(str(thumbnail))+"&preview="+urllib.quote_plus(str(preview))+")"
     else:
         title = ("Add "+name+" to favorites." )                
         browse =  "XBMC.Container.Refresh("+str(sys.argv[0])+str(sys.argv[2])+"&favorite=1"+"&streamID="+urllib.quote_plus(str(streamID))+"&name="+urllib.quote_plus(str(name))+"&thumbnail="+urllib.quote_plus(str(thumbnail))+"&preview="+urllib.quote_plus(str(preview))+")"
