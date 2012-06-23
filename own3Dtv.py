@@ -368,17 +368,17 @@ except:
     pass
 
 try:
-    nameAdd=parameters["name"]
+    nameAdd=urllib.unquote_plus(parameters["name"])
 except:
     pass
 
 try:
-    thumbnailAdd=parameters["thumbnail"]
+    thumbnailAdd=urllib.unquote_plus(parameters["thumbnail"])
 except:
     pass
 
 try:
-    previewAdd=parameters["preview"]
+    previewAdd=urllib.unquote_plus(parameters["preview"])
 except:
     pass
 
