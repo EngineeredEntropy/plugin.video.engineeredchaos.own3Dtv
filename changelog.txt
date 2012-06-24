@@ -1,3 +1,8 @@
+[B]Version: 0.1.2[/B]
+*Improved CDN Recognition. CDN1 and CDN2 are now supported.
+Known Problems:
+*There's currently no checking if CDN's are working.  The plugin simply loads the preferred CDN if it's found.  Toggling the preffered CDN setting may solve problems if a CDN is not working.
+*Only two resolutions are supported. (Typically 720p and 480p) Need to find a graceful way to allow greater selection.
 [B]Version: 0.1.1[/B]
 *Errors relating to no internet connection are now caught.
 [B]Version: 0.1.0[/B]

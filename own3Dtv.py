@@ -19,7 +19,7 @@ import xbmcplugin, xbmcgui, xbmcaddon
 
 LISTLIVEVIDEOS = 1
 PLAYVIDEO = 2
-SUBSCRIPTIONS = 3
+LISTFAVORITES = 3
 LISTGAMES = 4
 SHOWSTARCRAFT = 5
 SHOWDIABLO = 6
@@ -28,11 +28,9 @@ SHOWDOTA = 8
 SHOWCOUNTER = 9
 SHOWWOW = 10
 SEARCHLIVE = 11
-LISTFAVORITES = 12
 
-
-LIVETYPE = 1
-VODTYPE = 2
+LIVE = 1
+VOD = 2
 OFFLINE = 3
 CHECKLIVE = 4
 OTHER = 5
@@ -56,7 +54,7 @@ WOWTHUMB="http://img.own3d.tv/games/20_4d8a69680ccf7_spotlight_logo.png"
 
  
 CDN1= 'rtmp://fml.2010.edgecastcdn.net:1935/202010'
-CDN2= ''
+CDN2= 'rtmp://owned.fc.llnwd.net/owned'
 SWF='http://static.ec.own3d.tv/player/Own3dPlayerV2_86.swf'
 
 #Collects stream ID, stream name, game name, stream cover, and stream thumbnail
@@ -97,6 +95,7 @@ class Channel:
         
     def loadInfo(self):
         #Load and parse own3d info page
+        print "Loading Stream Information."
         infoURL="http://www.own3d.tv/livecfg/"+str(self.streamID)
         try:
             infoPage=urllib.urlopen(infoURL)
@@ -107,6 +106,7 @@ class Channel:
         self.infoDOM=parse(infoPage)
         self.channel=self.infoDOM.getElementsByTagName("channel")[0]
         
+        #TODO: This only handles 720p or 480p. Need to find a way to easily handle more resolutions.
         if settings.getSetting('hdVideo') == 'true':
             self.activeStream=0
         else:
@@ -116,44 +116,71 @@ class Channel:
         self.title=self.channel.attributes["name"].value
         self.user=self.channel.attributes["owner"].value
         self.game=self.channel.attributes["description"].value
-        if self.infoDOM.getElementsByTagName("thumb")[0].firstChild == None:
-            print ICON
+        
+        if checkLive(self.streamID) != LIVE:
+        #if self.infoDOM.getElementsByTagName("thumb")[0].firstChild == None:
+            #print ICON
+            print "Stream is not live."
             xbmc.executebuiltin("XBMC.Notification(own3D.tv,Error Loading Stream,5000,"+ICON+")")
             return 1
-        self.thumbnail=str(self.infoDOM.getElementsByTagName("thumb")[0].firstChild.data)
-
+        try:
+            self.thumbnail=str(self.infoDOM.getElementsByTagName("thumb")[0].firstChild.data)
+        except:
+            print "Error Loading thumbnail."
+        #Think this may be wrong. Does this just fail to provide a thumbnail if there's no static thumbnail?
         if '?' in self.thumbnail:
             self.thumbnail="icon.png"
-        print "Thumbnail: "+self.thumbnail
-        #load CDN's and Streams
-        self.cdnList=self.channel.getElementsByTagName("item")
-        cdn=len(self.cdnList)-1
+        #print "Thumbnail: "+self.thumbnail
         
-        while cdn>=0:
-            self.rtmpBase=self.cdnList[cdn].attributes["base"].value
-            if self.rtmpBase == '${cdn1}':
-                self.activeCDN=cdn
+        
+        findCDN=None
+        #Load CDN's and Streams
+        if settings.getSetting('preferredCDN') == 'true':
+            print "Trying CDN1 first."
+            findCDN='${cdn1}'
+        else:
+            print "Trying CDN2 first."
+            findCDN='${cdn2}'
+            
+        self.cdnList=self.channel.getElementsByTagName("item")
+        cdn=len(self.cdnList)
+        i=0
+        self.rtmpBase=None
+        while i<cdn:
+            self.rtmpBase=self.cdnList[i].attributes["base"].value
+            if self.rtmpBase == findCDN:
+                self.activeCDN=i
                 break
-                
+            i=i+1
+            
+        if self.rtmpBase==None:
+            i=0
+            print "Preferred CDN not found."
+            if settings.getSetting('preferredCDN') == 'true':
+                findCDN='${cdn2}'
+            else:
+                findCDN='${cdn1}'
+            while i<cdn:
+                self.rtmpBase=self.cdnList[i].attributes["base"].value
+                if self.rtmpBase == findCDN:
+                    self.activeCDN=i
+                    break
+                i=i+1
+            
         if(self.rtmpBase == "${cdn1}"):
+            print "Using CDN1"
             self.rtmpBase = CDN1
+        elif(self.rtmpBase == "${cdn2}"):
+            print "Using CDN2"
+            self.rtmpBase = CDN2
         else:
             print "CDN Not Recognized! Aborting."
             return 1
-        #self.rtmpBase=self.cdnList[sel f.activeCDN].attributes["base"].value
+
         self.streamList=self.cdnList[self.activeCDN].getElementsByTagName("stream")
         self.rtmpPath=self.streamList[self.activeStream].attributes["name"].value
         
-        #Generate playback URL
-        
-        #determine CDN
-
-        #elif self.rtmpBase == '${cdn2}':
-        #    self.rtmpBase = CDN2
-        #else:
-
-        
-        #rtmpURL
+        #Only the right side is useful if there's a question mark separator in the stream url.
         if '?' in self.rtmpPath:
             self.rtmpURL=self.rtmpBase+'?'+self.rtmpPath.split('?',1)[1]
         else:
@@ -170,17 +197,16 @@ class Channel:
         self.verify='True'
         
         self.playbackURL=self.rtmpURL+" pageUrl="+self.pageURL+" Playpath="+self.playPath+" swfUrl="+SWF+" swfVfy="+self.verify+" Live="+self.live
-        #print "rtmpURL: "+self.rtmpURL
-        #print "pageURL: "+self.pageURL
-        #print "playPath: "+self.playPath
-        #print "playbackURL: "+self.playbackURL
-        print "Loading Stream--------------------------------------------"
+
+        print "Loading Stream."
+        print "--------------------------------------------"
         print "Title: "+self.title
         print "User: "+self.user
         print "Game: "+self.game
         print "Playback URL: "+self.playbackURL
         
 def get_params():
+    #Generic XBMC function to parse an arguement url given to the plugin.
         param=[]
         paramstring=sys.argv[2]
         if len(paramstring)>=2:
@@ -198,43 +224,34 @@ def get_params():
                                 
         return param
 
-def loadInfo(streamID):
-        #Load and parse own3d info page
-        infoURL="http://www.own3d.tv/livecfg/"+str(streamID)
-        infoPage=urllib.urlopen(infoURL)
-        infoDOM=parse(infoPage)
-        channel=infoDOM.getElementsByTagName("channel")[0]
-        
-        if infoDOM.getElementsByTagName("thumb")[0].firstChild == None:
-            return 1
-        else:
-            return 0
-        
 def loadLive(url):
+    #Scrapes a URL for live videos using the defined regular expression at the head of the source code.
     try:
         pageContents=loadPage(url)
     except:
         print "Error loading page. Are you connected to the internet?"
         xbmc.executebuiltin("XBMC.Notification(own3D.tv,Error Locating Streams,5000,"+ICON+")")
         return None
-    
     a=re.compile(LIVEREGEX)
     match=a.findall(pageContents)
     return match   
         
 def loadPage(url):
+    #Opens a URL and returns the raw content of the page.
     page=urllib.urlopen(url)
     pageContents=page.read()
     page.close()
     return pageContents
 
 def displayVideos(videos, videoType):
+    #Generates a menu of video links from a scraped list of live videos
     if videos != None:
         for streamID, thumbnail, name, preview in videos:
             addVideoLink(streamID,thumbnail,name,preview,videoType)
         xbmcplugin.endOfDirectory(int(sys.argv[1]))
     
 def checkLive(streamID):
+    #Checks if the streamID is live via the own3d api.
     print "Checking if "+str(streamID)+" is live."
     liveURL="http://api.own3d.tv/liveCheck.php?live_id="+str(streamID)
     try:
@@ -247,68 +264,53 @@ def checkLive(streamID):
     print "Checking if Live."
     print live.getElementsByTagName("isLive")[0].firstChild.data
     if live.getElementsByTagName("isLive")[0].firstChild.data == "true":
-        return LIVETYPE
+        return LIVE
     else:
         return OFFLINE
-#    if loadInfo(streamID) == 1:
-#        return OFFLINE
-#    else:
-#        return LIVETYPE
-    
-def checkLiveOld(streamID):
-    url="http://www.own3d.tv/livecfg/"+streamID
-    pageContents=loadPage(url)
-    a=re.compile("ownerLink=\"(.+)\">")
-    match=a.findall(pageContents)
-    print match
-    if len(match)!=0:
-        pageContents=loadPage(match[0])
-        if "<span class=\"cGray9 fntN\">LIVE&nbsp;</span>" in pageContents:
-            print streamID+" is Live!"
-            return LIVETYPE
-    print streamID+" is not live."
-    return OFFLINE
 
 def searchLive(searchString):
+    #Performs a search of live videos.
     print "Searching: "+"http://www.own3d.tv/livestreams/?search="+searchString.replace(" ","+")+"&type=live"
     results=loadLive("http://www.own3d.tv/livestreams/?search="+searchString.replace(" ","+")+"&type=live")
-    displayVideos(results, LIVETYPE)
+    displayVideos(results, LIVE)
     
 def addMenuItem(name,mode,iconimage):
-    url=sys.argv[0]+"?mode="+str(mode)#+"&name="+urllib.quote_plus(name)
+    #Add a generic menu item. doesn't link to content, so only mode is required in URL.
+    url=sys.argv[0]+"?mode="+str(mode)
     ok=True
     listItem=xbmcgui.ListItem(name, iconImage="DefaultFolder.png", thumbnailImage=iconimage)
     listItem.setInfo( type="Video", infoLabels={ "Title": name } )
     ok=xbmcplugin.addDirectoryItem(int(sys.argv[1]),url,listItem,True)
     return ok
+
 def addVideoLink(streamID, thumbnail, name, preview, videoType):
-#    if videoType == LIVETYPE:
-#        if checkLive(streamID) == 0:
-#            videoType=OFFLINE
+    #set link click to begin playback.
     url=sys.argv[0]+"?mode="+urllib.quote_plus(str(PLAYVIDEO))+"&streamID="+urllib.quote_plus(str(streamID))+"&name="+urllib.quote_plus(name)+"&videoType="+urllib.quote_plus(str(videoType))
     
+    #do we need to test if source is live?
     if videoType == CHECKLIVE:
         videoType = checkLive(streamID)
-    if videoType == LIVETYPE:
+        
+    #Generate stream tag based on videoType
+    if videoType == LIVE:
         listItem=xbmcgui.ListItem("[Live] "+name, iconImage="DefaultVideo.png", thumbnailImage=thumbnail)
     elif videoType == OFFLINE:
         listItem=xbmcgui.ListItem("[Offline] "+name, iconImage="DefaultVideo.png", thumbnailImage=thumbnail)
     else:
         listItem=xbmcgui.ListItem(name, iconImage="DefaultVideo.png", thumbnailImage=thumbnail)
-    ok=True
-    
+         
+    #Generate an "Add to favorites" context menu item. ("Remove from favorites" if viewing favorites list.)
     if mode == LISTFAVORITES:
         title = ("Remove "+name+" from favorites." )                
-        browse =  "XBMC.Container.Refresh("+str(sys.argv[0])+str(sys.argv[2])+"&favorite=2"+"&streamID="+urllib.quote_plus(str(streamID))+"&name="+urllib.quote_plus(str(name))+"&thumbnail="+urllib.quote_plus(str(thumbnail))+"&preview="+urllib.quote_plus(str(preview))+")"
+        browse =  "XBMC.Container.Refresh("+str(sys.argv[0])+str(sys.argv[2])+"&favorite=2"+"&favStreamID="+urllib.quote_plus(str(streamID))+"&favName="+urllib.quote_plus(str(name))+"&favThumbnail="+urllib.quote_plus(str(thumbnail))+"&favPreview="+urllib.quote_plus(str(preview))+")"
     else:
         title = ("Add "+name+" to favorites." )                
-        browse =  "XBMC.Container.Refresh("+str(sys.argv[0])+str(sys.argv[2])+"&favorite=1"+"&streamID="+urllib.quote_plus(str(streamID))+"&name="+urllib.quote_plus(str(name))+"&thumbnail="+urllib.quote_plus(str(thumbnail))+"&preview="+urllib.quote_plus(str(preview))+")"
-    print "Context url: "+browse
+        browse =  "XBMC.Container.Refresh("+str(sys.argv[0])+str(sys.argv[2])+"&favorite=1"+"&favStreamID="+urllib.quote_plus(str(streamID))+"&favName="+urllib.quote_plus(str(name))+"&favThumbnail="+urllib.quote_plus(str(thumbnail))+"&favPreview="+urllib.quote_plus(str(preview))+")"    
     cm=[]
     cm.append((title, browse  ))
     listItem.addContextMenuItems( cm, replaceItems=False )
     ok=xbmcplugin.addDirectoryItem(int(sys.argv[1]),url,listItem)
-    return ok
+    
 def loadMenu():
     addMenuItem("Live Streams",LISTLIVEVIDEOS,'')
     addMenuItem("Games",LISTGAMES,'')
@@ -326,16 +328,15 @@ def loadGames():
     xbmcplugin.endOfDirectory(int(sys.argv[1]))
     
 def loadFavorites(favorites):
-    print "Favorites: "
-    print favorites
-    #if refresh == 1 and settings.getSetting('checkLive') =="true":
     if settings.getSetting('checkLive') =="true":
         displayVideos(favorites,CHECKLIVE)
     else:
         displayVideos(favorites,OTHER)
         
         
-parameters=get_params()
+ #Plugin Start       
+        
+#Initialize variables
 mode=None
 streamID=None
 activeStream=None
@@ -345,80 +346,87 @@ name=None
 favorite=None
 preview=None
 favorites=[]
-settings = xbmcaddon.Addon("plugin.video.engineeredchaos.own3Dtv")
 
+#Load url paramaters, settings, and plugin icon.
+parameters=get_params()
+settings = xbmcaddon.Addon("plugin.video.engineeredchaos.own3Dtv")
 ICON = xbmc.translatePath( os.path.join( settings.getAddonInfo('path'), 'icon.png' ) )
 
-#favoriteString=settings.getSetting("favorites")
-#favoriteSplit=""
-#favorites=[]#None#favoriteString.split('&&&')
-#if "&&&" in favoriteString:
-#    favoritesSplit=favoriteString.split('&&&')
-#print "FavoriteSplit: "+favoriteSplit
-print "Parameters: " + str(parameters)
 
+#try to extract any applicable parameters.
 try:
     favorite=int(parameters["favorite"])
 except:
     pass
-
 try:
-    streamIDAdd=int(parameters["streamID"])
+    mode=int(parameters["mode"])
+except:
+    pass
+try:
+    streamID=int(parameters["streamID"])
+except:
+    pass
+try:
+    videoType=int(parameters["type"])
+except:
+    pass
+try:
+    name=parameters["name"]
+except:
+    pass
+try:
+    thumbnail=parameters["thumbnail"]
+except:
+    pass
+try:
+    preview=parameters["preview"]
+except:
+    pass
+try:
+    streamIDAdd=int(parameters["favStreamID"])
+except:
+    pass
+try:
+    nameAdd=urllib.unquote_plus(parameters["favName"])
+except:
+    pass
+try:
+    thumbnailAdd=urllib.unquote_plus(parameters["favThumbnail"])
+except:
+    pass
+try:
+    previewAdd=urllib.unquote_plus(parameters["favPreview"])
 except:
     pass
 
-try:
-    nameAdd=urllib.unquote_plus(parameters["name"])
-except:
-    pass
 
-try:
-    thumbnailAdd=urllib.unquote_plus(parameters["thumbnail"])
-except:
-    pass
 
-try:
-    previewAdd=urllib.unquote_plus(parameters["preview"])
-except:
-    pass
+#Load favorites from the settings string.
+tempFavorites=[]
+favoriteSplit3=[]
 
-#refresh=1
 favoriteString= settings.getSetting("favorites")
 favoriteSplit= favoriteString.split("&&&")
-print "Favorites Loaded: "
-print favoriteString
-#favorites=[]
-favoriteSplit3=[]
-print "FavoriteSplit: "
-print favoriteSplit
+
 for favoriteSplit2 in favoriteSplit:
     favoriteSplit3.append(favoriteSplit2.split("###"))
-print "FavoriteSplit3"
-print favoriteSplit3
 
-tempFavorites=[]
 for favoriteItem in favoriteSplit3:
     if len(favoriteItem)==4:
         tempFavorites.append(favoriteItem)
-for streamID,thumbnail,name,preview in tempFavorites:
-    favorites.append([streamID,thumbnail,name,preview])
-    
-#favorites=[]
+for streamIDTemp,thumbnailTemp,nameTemp,previewTemp in tempFavorites:
+    favorites.append([streamIDTemp,thumbnailTemp,nameTemp,previewTemp])
+
+#Favorite addition requested
 if favorite == 1:
     print "Adding "+nameAdd+" to favorites."
     alreadyAdded=0
     favoriteString="";
-    
-    ##favorites.append([streamID,thumbnail,name,preview])
-    print streamIDAdd
-    print thumbnailAdd
-    print nameAdd
-    print previewAdd
-    print favorites
-    for streamID,thumbnail,name,preview in favorites:
+
+    for streamIDTemp,thumbnailTemp,nameTemp,previewTemp in favorites:
         if nameAdd in name:
             alreadyAdded=1
-        favoriteString=favoriteString+str(streamID)+"###"+str(thumbnail)+"###"+str(name)+"###"+str(preview)+"&&&"
+        favoriteString=favoriteString+str(streamIDTemp)+"###"+str(thumbnailTemp)+"###"+str(nameTemp)+"###"+str(previewTemp)+"&&&"
         
     if alreadyAdded==0:
         favoriteString=favoriteString+str(streamIDAdd)+"###"+str(thumbnailAdd)+"###"+str(nameAdd)+"###"+str(previewAdd)
@@ -426,98 +434,75 @@ if favorite == 1:
     else:
         print nameAdd+" is already in favorites."
     settings.setSetting("favorites",favoriteString)
-    print "Saving Favorites: "
-    print favoriteString
+    print "Saving Favorites."
 
-
+#Favorite removal requested.
 if favorite ==2:
-    #refresh=0
+    print "Removing "+nameAdd+" from favorites."
     newFavorites=[]
     favoriteString="";
-    print "Removing "+nameAdd+" from favorites."
-    for streamID,thumbnail,name,preiview in favorites:
+
+    for streamIDTemp,thumbnailTemp,nameTemp,previewTemp in favorites:
         if name in nameAdd:
             print "Match Found...Removing."
         else:
-            newFavorites.append([streamID,thumbnail,name,preview])
-            favoriteString=favoriteString+str(streamID)+"###"+str(thumbnail)+"###"+str(name)+"###"+str(preview)+"&&&"
-    print "Updating Favorites: "
-    print favoriteString
+            newFavorites.append([streamIDTemp,thumbnailTemp,nameTemp,previewTemp])
+            favoriteString=favoriteString+str(streamIDTemp)+"###"+str(thumbnailTemp)+"###"+str(nameTemp)+"###"+str(previewTemp)+"&&&"
+    print "Saving Favorites."
     settings.setSetting("favorites",favoriteString)
-    #mode=LISTFAVORITES
     favorites=newFavorites
 
 
+#Plugin States
 
-
-
-try:
-    mode=int(parameters["mode"])
-except:
-    pass
-
-try:
-    streamID=int(parameters["streamID"])
-except:
-    pass
-
-try:
-    videoType=int(parameters["type"])
-except:
-    pass
-
-try:
-    name=parameters["name"]
-except:
-    pass
-
-try:
-    thumbnail=parameters["thumbnail"]
-except:
-    pass
-
-try:
-    preview=parameters["preview"]
-except:
-    pass
-
-
-
-
-#if len(favoriteSplit)>0:
-   # for streamID,thumbnail,name,preview in favoriteSplit.split("###")
-    #    favo
 if mode == None:
     loadMenu()
+    
 elif mode == LISTLIVEVIDEOS:
-    displayVideos(loadLive(LIVEURL),LIVETYPE)
+    displayVideos(loadLive(LIVEURL),LIVE)
+    
 elif mode == LISTGAMES:
     loadGames()
+    
 elif mode == LISTFAVORITES:
     loadFavorites(favorites)
+    
+#These should be made into one function with a gametype parameter.
 elif mode == SHOWSTARCRAFT:
-    displayVideos(loadLive(STARCRAFTURL),LIVETYPE)
+    displayVideos(loadLive(STARCRAFTURL),LIVE)
+    
 elif mode == SHOWDIABLO:
-    displayVideos(loadLive(DIABLOURL),LIVETYPE)
+    displayVideos(loadLive(DIABLOURL),LIVE)
+    
 elif mode == SHOWLOL:
-    displayVideos(loadLive(LOLURL),LIVETYPE)
+    displayVideos(loadLive(LOLURL),LIVE)
+    
 elif mode == SHOWDOTA:
-    displayVideos(loadLive(DOTAURL),LIVETYPE)
+    displayVideos(loadLive(DOTAURL),LIVE)
+    
 elif mode == SHOWCOUNTER:
-    displayVideos(loadLive(COUNTERURL),LIVETYPE)
+    displayVideos(loadLive(COUNTERURL),LIVE)
+    
 elif mode == SHOWWOW:
-    displayVideos(loadLive(WOWURL),LIVETYPE)
+    displayVideos(loadLive(WOWURL),LIVE)
+    
 elif mode == SEARCHLIVE:
     keyboard = xbmc.Keyboard('')
     keyboard.doModal()
     if (keyboard.isConfirmed()):
         searchLive(keyboard.getText())
+        
 elif mode == PLAYVIDEO:
-    print "Loading StreamID: "+str(streamID)
     if streamID != None:
+        print "Attempting to play StreamID: "+str(streamID)
         activeStream=Channel(streamID,videoType)
         if activeStream.loadInfo() != 1:
+            print "Playing Stream."
             activeStream.playStream()
+        else:
+            print "Error loading stream info. Aborting playback."
+    else:
+        print "No streamID to play."
     
 
 

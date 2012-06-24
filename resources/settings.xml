@@ -2,4 +2,5 @@
 <settings>
    <setting id="hdVideo" type="bool" label="Play Hd Videos." default="true"/>
    <setting id="checkLive" type="bool" label="Check if Favorites are Live" default="true"/>
+   <setting id="preferredCDN" type="bool" label="Prefer CDN1" default="true"/>
    </settings>
